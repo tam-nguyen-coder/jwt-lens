@@ -1,0 +1,54 @@
+/* ---------------------------------------------------------------------------
+   Shared design tokens for the dev-tools family.
+
+   This file is IDENTICAL in every tool — json-studio, mermaid-viewer, and any
+   new one scaffolded from jwt-lens. Copy it verbatim; never edit one copy
+   in place. A `diff` between two repos' tokens.css should always be empty, and
+   that is the whole point: it is the tripwire that catches design drift.
+
+   Tool-specific tokens (row heights, syntax colours, canvas shading) belong in
+   the tool's own style.css, under its "tool tokens" section — not here.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --top-h: 34px;   /* the single fixed top bar; nothing else is permanent */
+  --radius: 5px;
+  --font-ui: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html[data-theme="dark"] {
+  --bg: #0d0f13;
+  --bg-elev: #14171d;
+  --bg-sunk: #0a0c0f;
+  --border: #242932;
+  --border-strong: #363d49;
+  --fg: #e6e9ef;
+  --fg-dim: #8b94a3;
+  --fg-faint: #5c6472;
+  --accent: #4ee0b5;
+  --accent-fg: #07231c;
+  --danger: #ff6b6b;
+  --danger-bg: #2a1416;
+  --warn: #f0b64a;
+  --hover: rgba(255, 255, 255, 0.06);
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="light"] {
+  --bg: #f2f4f7;
+  --bg-elev: #ffffff;
+  --bg-sunk: #e8ebef;
+  --border: #dde1e7;
+  --border-strong: #c3cad3;
+  --fg: #1b202a;
+  --fg-dim: #616a78;
+  --fg-faint: #8b94a1;
+  --accent: #0f9d76;
+  --accent-fg: #ffffff;
+  --danger: #cf3b3b;
+  --danger-bg: #fdeaea;
+  --warn: #a06a00;
+  --hover: rgba(0, 0, 0, 0.05);
+  --shadow: 0 10px 30px rgba(16, 24, 40, 0.18);
+}
