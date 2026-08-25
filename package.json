@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Starting point for a dev-tools browser tool: top bar, theme, persistence, toasts, test harness.",
+  "description": "A DevTools panel that reads the JWTs your app is actually sending — claims, live expiry, and rotation history — plus a web page for pasting one in.",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

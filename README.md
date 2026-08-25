@@ -1,65 +1,141 @@
-# Jwt Lens
+# JWT Lens
 
-The starting point for a tool in `dev-tools/`. It is a running app, not a folder of
-stubs: top bar, theme switching, debounced persistence, toasts, a status bar and a
-test suite that passes. Copy it, then replace the view.
+A DevTools panel that reads the JWTs your app is actually sending, off the requests of the
+tab you are inspecting. Claims in plain language, a live expiry countdown, and the rotation
+history of a session — without copying a token out of the Network tab first.
 
-```bash
-./scaffold.sh yaml-lens 5300
-```
-
-That copies the template to `../yaml-lens`, renames every occurrence of its identity
-(`jwt-lens`, `Jwt Lens`, port `5300`), and makes the first commit.
-
-## What you get
-
-| File | Why it is here |
-| --- | --- |
-| `src/tokens.css` | The shared design tokens. **Identical in every tool** — copy, never edit. `diff` against another tool should be empty |
-| `src/style.css` | The component vocabulary: `.topbar` `.brand` `.chip` `.ib` `.sel` `.vr` `.grow` `.statusbar` `.toast` |
-| `src/state.ts` | One versioned localStorage key, per-field validation, debounced save |
-| `src/main.ts` | The shell: markup in one template, then wiring. Icons as inline SVG constants |
-| `test/harness.ts` | Dependency-free assertions and runner — no test framework |
-| `test/state.test.ts` | An example of the rule: pure logic gets tested, DOM gets exercised in a browser |
-| `.claude/launch.json` | Fixed dev port, so Claude Code can start the tool |
-| `wrangler.jsonc` | Cloudflare Pages output dir |
-
-## Commands
+The same app also runs as a page for pasting a token into: **[jwt-lens.pages.dev](https://jwt-lens.pages.dev)**.
 
 ```bash
 npm install
-npm run dev         # vite on the tool's fixed port
-npm run typecheck   # tsc --noEmit
-npm test            # the harness, over the pure modules
-npm run build       # tsc, then vite → dist/
+npm run dev          # http://localhost:5300 — the web build
 ```
 
-Run one suite instead of all of them:
+Nothing is uploaded, no token is stored, and the extension asks for **no host permissions
+at all**.
+
+## Why this exists
+
+Every JWT decoder on the web takes a token you already have. Getting that token is the
+tedious part: open the Network tab, find the right request, expand the headers, select the
+value out of `Authorization: Bearer …`, paste it somewhere else, and do it again after the
+next refresh.
+
+This reads the requests instead. Open the panel, reload, and every token the page sent or
+received is listed — with the ones that belong to the same session grouped together, oldest
+first, so a refresh is visible as a refresh rather than as a second mystery token.
+
+### Where it looks
+
+A token rarely lives in only one place, and which surface an app uses is often the thing you
+opened the panel to find out.
+
+| Surface | Example |
+| --- | --- |
+| `Authorization` header | `Bearer eyJ…`, any scheme, plus `Proxy-Authorization` |
+| Custom headers | `X-Access-Token`, `X-Id-Jwt`, anything matching token / jwt / auth / assertion |
+| Cookies | request `Cookie` and response `Set-Cookie`, each pair read separately |
+| URL | query **and** the `#fragment` the OAuth implicit flow uses — named by parameter |
+| Response body | JSON walked recursively, reporting the field: `data.tokens.access_token` |
+| Request body | the refresh call's JSON or urlencoded form |
+
+Each hit records where it came from, so a row reads `RS256 · issued 31s ago · set-cookie+body+bearer`.
+
+### What it tells you that a decoder cannot
+
+- **A live countdown.** `expires in 4m` ticking down, `expired 1h ago` in red. The most
+  common auth bug is a clock, not a claim.
+- **Rotation.** Tokens sharing an issuer, subject and audience are one group, ordered by
+  `iat`. You can see when the app refreshed, and whether it waited until after expiry.
+- **Which requests carried it**, with method, status and the surface it rode on — including
+  the 401 that used the stale one.
+- **Warnings that matter**: `alg: none`, an empty signature, `exp` before `iat`, a token
+  issued in the future, no `exp` at all.
+
+It never says a token is *valid*. Without the signing key a signature cannot be checked, so
+every token is labelled `unverified` and that is the honest end of it.
+
+## Install the extension
+
+Not on the Chrome Web Store yet. To load it:
 
 ```bash
-npx tsx -e 'import("./test/state.test.ts").then(()=>import("./test/harness.ts")).then(m=>m.run())'
+npm install && npm run build
 ```
 
-## After scaffolding
+Then in Chrome: **Extensions → Manage extensions → Developer mode → Load unpacked**, and
+pick this repo's `dist/` folder. Open DevTools on any tab and take the **JWT** tab.
 
-1. Replace the `<textarea>` in `src/main.ts` with the real view.
-2. Redraw `public/favicon.svg` — keep the 32×32 tile, `rx="7"`, `#0d0f13` ground and
-   `#4ee0b5` glyph, so it sits in the family.
-3. Rewrite this README to the shape the other tools use: what it is, how to run it, why
-   it exists (what it is denser or faster than), a feature table, a keyboard table, a
-   source map, build and deploy notes.
-4. Add the tool and its port to the table in `dev-tools/CLAUDE.md`.
-5. Create the GitHub repo, push, then connect Cloudflare Pages **through the dashboard**
-   (Framework preset Vite, build `npm run build`, output `dist`, production branch
-   `main`). Never `wrangler pages deploy` first — a direct-upload project cannot be
-   converted to a Git-connected one afterwards.
+Requests are only seen while DevTools is open, so reload the page once the panel is up —
+the panel says as much when it is empty.
 
-## The rules this template encodes
+## Permissions
 
-- Vanilla TypeScript and Vite. No framework, no UI kit, no state library, no CSS
-  framework, no test runner. A dependency has to be doing something genuinely hard.
-- Everything runs client-side. No backend, no upload, no account.
-- 34 px of fixed chrome and nothing else permanent. Density over comfort.
-- Every action has a keyboard shortcut.
-- Dark by default, light supported, both driven only by tokens on `data-theme`.
-- The user's work survives a refresh without being asked.
+The manifest asks for nothing:
+
+```json
+{ "manifest_version": 3, "devtools_page": "devtools.html" }
+```
+
+`chrome.devtools.network` needs no permission and only ever sees the tab you deliberately
+opened DevTools on. An extension that watched every tab would need `<all_urls>` and the
+right to read `Authorization` headers everywhere — which, for a tool that exists to display
+credentials, is not a trade worth making.
+
+## Nothing is stored
+
+This tool deliberately breaks the rule the rest of `dev-tools/` follows. The others restore
+your whole session from `localStorage` so a refresh costs you nothing. Tokens are live
+credentials, so here only the theme and the list width persist (`jwt-lens.v1`). Close the
+panel and the tokens are gone. `test/prefs.test.ts` asserts that a token smuggled into the
+stored object is dropped on the way back in.
+
+## Keyboard
+
+| | |
+| --- | --- |
+| `⌘V` | Decode whatever is in the clipboard — anywhere in the panel, no field to focus |
+| drag & drop | A token or a file containing one |
+| `⌘⌫` | Forget every token |
+
+## Source map
+
+| File | Contents |
+| --- | --- |
+| `src/jwt.ts` | base64url, decode, claim classification, expiry, warnings |
+| `src/extract.ts` | Pulling tokens out of headers, cookies, URLs and bodies |
+| `src/store.ts` | Deduplication, sighting log, rotation grouping |
+| `src/app.ts` | The shell both entry points mount, and the `Source` they differ by |
+| `src/panel.ts` | The DevTools source: `chrome.devtools.network` → `RequestFacts` |
+| `src/web.ts` | The web entry, plus the `?demo` capture |
+| `src/prefs.ts` | The little that is allowed to persist |
+| `src/chrome.d.ts` | The four corners of the extension API this uses, hand-declared |
+| `test/` | The pure-logic suites and their harness |
+
+## Try it without installing
+
+[`/?demo`](http://localhost:5300/?demo) replays a scripted session — a login that returns a
+token in its body, API calls carrying it as a bearer, a 401 from a stale service token, a
+refresh that arrives in a `Set-Cookie`, and an unsigned `alg: none` token in a URL fragment.
+It is how the screenshots are taken and how the UI is checked without Chrome.
+
+## Build
+
+```bash
+npm run typecheck
+npm test             # 61 checks over the pure modules
+npm run build        # tsc, then vite → dist/
+```
+
+`npm test` runs the dependency-free harness (`test/harness.ts`) over everything that has no
+DOM: decoding and its failure modes, unicode payloads, millisecond `exp` values, the expiry
+boundary, every extraction surface, deduplication, the sighting cap, and rotation grouping.
+The panel and the list are checked in a browser against `?demo`.
+
+One `dist/` serves both targets: Cloudflare Pages publishes `index.html`, and Chrome loads
+the same folder as an unpacked extension. There are no inline scripts, so it satisfies the
+MV3 content security policy as built.
+
+Deploys are Cloudflare Pages via Git integration — push to `main` builds and deploys. Do not
+run `wrangler pages deploy` first; a direct-upload project cannot be converted to a
+Git-connected one afterwards.
