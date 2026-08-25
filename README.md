@@ -4,7 +4,8 @@ A DevTools panel that reads the JWTs your app is actually sending, off the reque
 tab you are inspecting. Claims in plain language, a live expiry countdown, and the rotation
 history of a session — without copying a token out of the Network tab first.
 
-The same app also runs as a page for pasting a token into: **[jwt-lens.pages.dev](https://jwt-lens.pages.dev)**.
+The same app also runs as an ordinary page for pasting a token into — that half deploys to
+Cloudflare Pages like the rest of `dev-tools/`, once the project is connected in the dashboard.
 
 ```bash
 npm install
@@ -114,7 +115,7 @@ stored object is dropped on the way back in.
 
 ## Try it without installing
 
-[`/?demo`](http://localhost:5300/?demo) replays a scripted session — a login that returns a
+`/?demo` on the web build replays a scripted session — a login that returns a
 token in its body, API calls carrying it as a bearer, a 401 from a stale service token, a
 refresh that arrives in a `Set-Cookie`, and an unsigned `alg: none` token in a URL fragment.
 It is how the screenshots are taken and how the UI is checked without Chrome.
