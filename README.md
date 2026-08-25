@@ -68,7 +68,14 @@ Then in Chrome: **Extensions → Manage extensions → Developer mode → Load u
 pick this repo's `dist/` folder. Open DevTools on any tab and take the **JWT** tab.
 
 Requests are only seen while DevTools is open, so reload the page once the panel is up —
-the panel says as much when it is empty.
+the panel says as much when it is empty. To check it in one step, open the web build at
+`/?emit`: the page sends two same-origin requests carrying a bearer token for the panel to
+catch.
+
+To submit it to the store, `npm run package` writes `jwt-lens.zip` with `manifest.json` at
+the archive root — the shape the dashboard wants. [`store/LISTING.md`](store/LISTING.md) has
+the listing copy, the single-purpose and data-usage answers, and the images at the required
+sizes.
 
 ## Permissions
 
@@ -98,6 +105,10 @@ stored object is dropped on the way back in.
 | `⌘V` | Decode whatever is in the clipboard — anywhere in the panel, no field to focus |
 | drag & drop | A token or a file containing one |
 | `⌘⌫` | Forget every token |
+
+## Privacy
+
+[`PRIVACY.md`](PRIVACY.md) — collects nothing, sends nothing, stores no tokens.
 
 ## Source map
 

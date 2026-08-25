@@ -320,13 +320,16 @@ h3 {
 
 .claims {
   width: 100%;
+  /* Fixed, so the name column keeps its width instead of the browser stranding
+     the value half a screen away on a wide pane. */
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
 }
 .claims tr { border-bottom: 1px solid var(--border); }
 .claims tr:last-child { border-bottom: 0; }
 .c-name {
-  width: 34%;
+  width: 190px;
   padding: 4px 10px 4px 0;
   vertical-align: top;
   font-family: var(--font-mono);

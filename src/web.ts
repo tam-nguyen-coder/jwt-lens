@@ -83,5 +83,26 @@ const demoSource: Source = {
   stop() { /* nothing to unwind */ },
 };
 
-const wantsDemo = new URLSearchParams(location.search).has("demo");
-mountApp(wantsDemo ? demoSource : null);
+/**
+ * `?emit` sends a couple of same-origin requests carrying a bearer token, so the
+ * DevTools panel has real traffic to catch. It is how you confirm the extension
+ * is working after loading it — and what the Web Store reviewer is pointed at.
+ */
+function emitSampleTraffic() {
+  const now = Math.floor(Date.now() / 1000);
+  const sample = token({
+    iss: "https://id.acme.test", aud: "api://orders", sub: "u-8842",
+    preferred_username: "tam", scope: "orders:read", iat: now, exp: now + 900,
+  });
+  for (const path of ["favicon.svg", "manifest.json"]) {
+    void fetch(`${path}?jwt-lens=sample`, { headers: { Authorization: `Bearer ${sample}` } }).catch(() => {});
+  }
+}
+
+const params = new URLSearchParams(location.search);
+if (params.has("emit")) {
+  emitSampleTraffic();
+  mountApp(null, "Two sample requests were just sent with an Authorization header. Open DevTools on this tab, take the JWT panel, and reload to see them caught.");
+} else {
+  mountApp(params.has("demo") ? demoSource : null);
+}

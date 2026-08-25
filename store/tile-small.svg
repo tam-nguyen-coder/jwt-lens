@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280">
+  <rect width="440" height="280" fill="#0d0f13"/>
+  <g opacity="0.5">
+    <path d="M0 214h440" stroke="#242932" stroke-width="1"/>
+  </g>
+  <g transform="translate(40 54)">
+    <rect width="64" height="64" rx="14" fill="#14171d" stroke="#242932"/>
+    <g fill="none" stroke="#4ee0b5" stroke-width="4.8" stroke-linecap="round" transform="translate(9 9)">
+      <circle cx="15" cy="23" r="9"/>
+      <path d="M24 23h20"/>
+      <path d="M35 23v7"/>
+      <path d="M43 23v5"/>
+    </g>
+  </g>
+  <text x="124" y="86" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="34" font-weight="700" fill="#e6e9ef" letter-spacing="-0.5">JWT Lens</text>
+  <text x="124" y="112" font-family="Menlo, monospace" font-size="13" fill="#4ee0b5">DevTools panel</text>
+  <text x="40" y="164" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" fill="#8b94a3">Decode the tokens your app is</text>
+  <text x="40" y="187" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" fill="#8b94a3">actually sending.</text>
+  <text x="40" y="245" font-family="Menlo, monospace" font-size="12.5" fill="#5c6472">no permissions · nothing uploaded</text>
+</svg>

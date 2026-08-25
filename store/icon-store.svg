@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- 96x96 of artwork inside 16px of transparent padding, as the store requires -->
+  <g transform="translate(16 16)">
+    <rect width="96" height="96" rx="21" fill="#0d0f13"/>
+    <g fill="none" stroke="#4ee0b5" stroke-width="7.2" stroke-linecap="round">
+      <circle cx="34.5" cy="48" r="13.5"/>
+      <path d="M48 48h30"/>
+      <path d="M64.5 48v10.5"/>
+      <path d="M76.5 48v7.5"/>
+    </g>
+  </g>
+</svg>

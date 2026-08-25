@@ -3,13 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "A DevTools panel that reads the JWTs your app is actually sending — claims, live expiry, and rotation history — plus a web page for pasting one in.",
+  "description": "A DevTools panel that reads the JWTs your app is actually sending \u2014 claims, live expiry, and rotation history \u2014 plus a web page for pasting one in.",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "tsx test/all.test.ts"
+    "test": "tsx test/all.test.ts",
+    "package": "npm run build && rm -f jwt-lens.zip && (cd dist && zip -qr ../jwt-lens.zip . -x '.*' -x '__MACOSX/*') && echo 'jwt-lens.zip ready \u2014 this is the file the Chrome Web Store wants'"
   },
   "devDependencies": {
     "tsx": "^4.23.12",
