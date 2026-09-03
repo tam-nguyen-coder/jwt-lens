@@ -187,8 +187,26 @@ export function shimInstalled(done: (yes: boolean) => void) {
   win.eval("!!window.__jwtLens", (result) => done(result === true));
 }
 
-/** Reload the inspected page with the shim in front of every other script. */
-export function installShim() {
+/**
+ * Install into the page as it stands — no reload, so nothing the user was in the
+ * middle of is lost. This catches every call made from now on, which is almost
+ * all of them: an app has to have captured its own reference to `fetch` before
+ * this ran for it to slip past.
+ */
+export function installShimLive(done: (ok: boolean) => void) {
+  const win = evaluator();
+  if (!win) { done(false); return; }
+  win.eval(`${WATCH_SHIM}; !!window.__jwtLens`, (result, info) => {
+    done(result === true && !info?.isError && !info?.isException);
+  });
+}
+
+/**
+ * The heavier version, for an app that grabbed `fetch` before we could: reload
+ * with the shim ahead of every other script. Costs the page's current state,
+ * which is why it is the second thing offered rather than the first.
+ */
+export function installShimOnReload() {
   const win = evaluator();
   if (typeof win?.reload !== "function") return;
   win.reload({ injectedScript: WATCH_SHIM });

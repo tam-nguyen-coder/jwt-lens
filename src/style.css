@@ -219,7 +219,7 @@ h3 {
 }
 .diag-offer span {
   display: block;
-  margin-top: 6px;
+  margin: 0 0 6px;
   font-size: 11px;
   line-height: 1.5;
   color: var(--fg-dim);
@@ -237,6 +237,8 @@ h3 {
   cursor: pointer;
 }
 .btn-offer:hover { filter: brightness(1.08); }
+.diag-offer span + .btn-offer { margin-top: 2px; }
+.diag-offer .btn-offer + span { margin: 6px 0 0; }
 
 /* ---------- token list ---------- */
 .list {

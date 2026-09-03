@@ -22,7 +22,7 @@
 
 import type { Source } from "./app.ts";
 import type { RequestFacts } from "./extract.ts";
-import { canReadPage, drainPage, installShim, probePage, shimInstalled } from "./page-watch.ts";
+import { canReadPage, drainPage, installShimLive, installShimOnReload, probePage, shimInstalled } from "./page-watch.ts";
 import type { PageProbe } from "./page-watch.ts";
 
 /** Bodies worth scanning, and a ceiling so a big download cannot stall anything. */
@@ -145,7 +145,13 @@ export function createDevtoolsSource(): Source {
      */
     watchPage: !canReadPage() ? undefined : function watchPage() {
       watching = true;
-      installShim();
+      // Try the live install first; only fall back to a reload if it did not take.
+      installShimLive((ok) => { if (!ok) installShimOnReload(); });
+    },
+
+    watchPageReload: !canReadPage() ? undefined : function watchPageReload() {
+      watching = true;
+      installShimOnReload();
     },
 
     watchingPage() {

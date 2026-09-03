@@ -26,6 +26,8 @@ export interface Source {
   stats?(): string[];
   /** Read requests from inside the page, for hosts that will not report them. */
   watchPage?(): void;
+  /** The same, but reloading first — for an app that captured `fetch` early. */
+  watchPageReload?(): void;
   watchingPage?(): boolean;
   stop(): void;
 }
@@ -117,12 +119,17 @@ function diagnosisHtml(d: Diagnostics, hostStats: string[], canWatch: boolean, w
   // and only once the ordinary route has visibly failed.
   const offer = !canWatch ? ""
     : watching
-      ? `<p class="diag-advice">Watching the page directly. Reload it if nothing appears — the shim goes in before the app's own scripts.</p>`
+      ? `<div class="diag-offer">
+          <span>Watching the page directly — click around your app and tokens will appear.
+          If nothing does, your app took its own copy of <code>fetch</code> before the reader
+          was in place, and it needs to go in ahead of the app's scripts.</span>
+          <button class="btn-offer" type="button" data-act="watch-reload">Reload the page with the reader first</button>
+        </div>`
       : `<div class="diag-offer">
           <button class="btn-offer" type="button" data-act="watch-page">Read the token from the page instead</button>
-          <span>Reloads this tab with a small shim in front of your app that reads the
-          <code>Authorization</code> header as the app sets it. It stays in this tab, nothing
-          is uploaded, and it lasts until you close DevTools.</span>
+          <span>Reads the <code>Authorization</code> header from inside this tab, as your app
+          sets it. No reload, so you keep whatever you were in the middle of. It stays in this
+          tab, nothing is uploaded, and it is gone when you close DevTools.</span>
         </div>`;
 
   const list = (label: string, items: string[], limit: number) => items.length
@@ -246,7 +253,11 @@ export function mountApp(source: Source | null, hintOverride?: string) {
       const wireOffer = () => {
         listEl.querySelector('[data-act="watch-page"]')?.addEventListener("click", () => {
           source?.watchPage?.();
-          toast("Reloading the page with the reader in front of it");
+          toast("Reading the page — use your app and tokens will appear");
+        });
+        listEl.querySelector('[data-act="watch-reload"]')?.addEventListener("click", () => {
+          source?.watchPageReload?.();
+          toast("Reloading with the reader ahead of your app");
         });
       };
       const reportedNothing = (source?.stats?.() ?? []).some((s) => s === "live events 0");

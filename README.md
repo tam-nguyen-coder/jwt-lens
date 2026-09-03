@@ -107,9 +107,11 @@ the DevTools **Network** panel has been opened once in that window, the API repo
 all, not even an empty-ish log. The panel now says so when it sees that.
 
 For that case the panel offers a second route, and only once the ordinary one has visibly
-failed: **Read the token from the page instead**. It reloads the tab with a small shim
-injected ahead of your app's own scripts, wrapping `fetch` and `XMLHttpRequest` so the
-`Authorization` header is read as your app sets it.
+failed: **Read the token from the page instead**. It wraps `fetch` and `XMLHttpRequest` inside
+the tab so the `Authorization` header is read as your app sets it — no reload, so you keep
+whatever you were in the middle of. If your app took its own copy of `fetch` before the reader
+was in place, a second button reloads with the reader ahead of the app's scripts; that is the
+only case that costs you the page's state.
 
 It is opt-in because, unlike everything else here, it does change the page. It still needs no
 permissions, still only touches the tab whose DevTools you opened, forwards every call
