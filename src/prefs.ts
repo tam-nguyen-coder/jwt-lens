@@ -14,6 +14,13 @@ export interface Prefs {
   theme: Theme;
   /** Width of the token list, in pixels. */
   listWidth: number;
+  /**
+   * Read the Authorization header from inside the page, without being asked
+   * each time. Off until the user turns it on, because it puts a shim in their
+   * page — but once they have chosen it, being asked again every session is
+   * just friction.
+   */
+  autoReadPage: boolean;
 }
 
 export const PREFS_KEY = "jwt-lens.v1";
@@ -21,7 +28,7 @@ export const PREFS_KEY = "jwt-lens.v1";
 export const LIST_MIN = 200;
 export const LIST_MAX = 560;
 
-export const DEFAULTS: Prefs = { theme: "dark", listWidth: 300 };
+export const DEFAULTS: Prefs = { theme: "dark", listWidth: 300, autoReadPage: false };
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
@@ -35,6 +42,7 @@ export function coerce(raw: unknown, defaults: Prefs = DEFAULTS): Prefs {
     listWidth: typeof p.listWidth === "number" && Number.isFinite(p.listWidth)
       ? clamp(p.listWidth, LIST_MIN, LIST_MAX)
       : defaults.listWidth,
+    autoReadPage: typeof p.autoReadPage === "boolean" ? p.autoReadPage : defaults.autoReadPage,
   };
 }
 

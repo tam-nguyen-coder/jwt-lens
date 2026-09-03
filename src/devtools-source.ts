@@ -134,7 +134,13 @@ export function createDevtoolsSource(): Source {
       timer = setInterval(() => {
         readHar(onRequest);
         probePage((p) => { probe = p; });
-        if (watching) drainPage(onRequest);
+        if (!watching) return;
+        // A navigation throws the shim away with the old document, so put it
+        // back before draining. Installing twice is a no-op.
+        shimInstalled((yes) => {
+          if (!yes) installShimLive(() => drainPage(onRequest));
+          else drainPage(onRequest);
+        });
       }, POLL_MS);
     },
 

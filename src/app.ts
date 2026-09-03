@@ -40,6 +40,7 @@ const ICONS: Record<string, string> = {
   play: `<path d="M6.5 4.5v11l9-5.5z"/>`,
   clear: `<path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 9h5.6l.7-9"/>`,
   rescan: `<path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3v3.5h-3.5"/>`,
+  eye: `<path d="M1.5 10S4.5 4.5 10 4.5 18.5 10 18.5 10 15.5 15.5 10 15.5 1.5 10 1.5 10z"/><circle cx="10" cy="10" r="2.4"/>`,
   copy: `<rect x="7" y="7" width="9" height="9" rx="2"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>`,
   paste: `<rect x="4.5" y="4" width="11" height="13" rx="2"/><path d="M8 4V2.8h4V4"/><path d="M7.5 9h5M7.5 12h3"/>`,
   sun: `<circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.5 4.5 6 6M14 14l1.5 1.5M15.5 4.5 14 6M6 14l-1.5 1.5"/>`,
@@ -145,7 +146,9 @@ function diagnosisHtml(
           <button class="btn-offer" type="button" data-act="watch-page">Read the token from the page instead</button>
           <span>Reads the <code>Authorization</code> header from inside this tab, as your app
           sets it. No reload, so you keep whatever you were in the middle of. It stays in this
-          tab, nothing is uploaded, and it is gone when you close DevTools.</span>
+          tab, nothing is uploaded, and it is gone when you close DevTools. Turning it on here
+          keeps it on — after this you just open the panel. The eye in the toolbar turns it
+          back off.</span>
         </div>`;
 
   const list = (label: string, items: string[], limit: number) => items.length
@@ -225,6 +228,8 @@ export function mountApp(source: Source | null, hintOverride?: string) {
       <span class="grow"></span>
       <button class="ib" id="paste" title="Paste a token (⌘V anywhere)">${icon("paste")}<span class="ib-label">Paste</span></button>
       <button class="ib" id="rescan" title="Re-read every request DevTools has recorded" ${source?.rescan ? "" : "hidden"}>${icon("rescan")}<span class="ib-label">Rescan</span></button>
+      <button class="ib" id="read-page" ${source?.watchPage ? "" : "hidden"} aria-pressed="${prefs.autoReadPage}"
+        title="Read the Authorization header from inside the page, every time this panel opens">${icon("eye")}</button>
       <span class="vr"></span>
       <button class="ib" id="pause" title="Stop watching requests" ${source ? "" : "hidden"}>${icon("pause")}</button>
       <button class="ib" id="clear" title="Forget every token (⌘⌫)">${icon("clear")}</button>
@@ -268,8 +273,9 @@ export function mountApp(source: Source | null, hintOverride?: string) {
     if (chains.length === 0) {
       const wireOffer = () => {
         listEl.querySelector('[data-act="watch-page"]')?.addEventListener("click", () => {
-          source?.watchPage?.();
-          toast("Reading the page — use your app and tokens will appear");
+          // Choosing it once is choosing it: being asked again every session is
+          // exactly the friction this is meant to remove.
+          setAutoReadPage(true);
         });
         listEl.querySelector('[data-act="watch-reload"]')?.addEventListener("click", () => {
           source?.watchPageReload?.();
@@ -536,6 +542,27 @@ export function mountApp(source: Source | null, hintOverride?: string) {
 
   render();
   setInterval(tick, 1000);
+
+  // Chosen previously, so it just happens — the panel opens and it is on.
+  if (prefs.autoReadPage && source?.watchPage) source.watchPage();
+
+  const readPageBtn = $<HTMLButtonElement>("read-page");
+
+  /** Turn the page reader on or off, and remember it. */
+  function setAutoReadPage(on: boolean, announce = true) {
+    prefs.autoReadPage = on;
+    readPageBtn.setAttribute("aria-pressed", String(on));
+    savePrefs(prefs);
+    if (on) {
+      source?.watchPage?.();
+      if (announce) toast("Reading the page — this stays on next time");
+    } else if (announce) {
+      toast("Stopped reading the page; reload the tab to remove the reader");
+    }
+    renderList();
+  }
+
+  readPageBtn.addEventListener("click", () => setAutoReadPage(!prefs.autoReadPage));
 
   const feed = (facts: RequestFacts) => {
     if (paused) return;

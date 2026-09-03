@@ -28,9 +28,14 @@ If Chrome will not report your app's API calls to the extension, the panel offer
 that reloads the tab with a small script injected ahead of your app. That script wraps
 `fetch` and `XMLHttpRequest` so the `Authorization` header can be read as your app sets it.
 
-It runs only after you press that button, only in the tab whose DevTools you opened, forwards
-every call to the browser untouched, and disappears when you close DevTools or navigate away
-without re-enabling it. What it reads goes to the panel in front of you and nowhere else.
+It runs only after you turn it on, only in the tab whose DevTools you opened, forwards every
+call to the browser untouched, and disappears when you close DevTools. What it reads goes to
+the panel in front of you and nowhere else.
+
+Turning it on is remembered, in the same `jwt-lens.v1` preference as your theme, so the panel
+does it again the next time it opens rather than asking every session. The eye in the toolbar
+shows the current state and switches it off; switching it off stops the reading, and reloading
+the tab clears the shim out of the page.
 
 ## Data collection
 

@@ -8,7 +8,7 @@ suite("prefs / coerce", () => {
   });
 
   test("a good field survives a bad one beside it", () => {
-    eq(coerce({ theme: "light", listWidth: "wide" }), { theme: "light", listWidth: DEFAULTS.listWidth });
+    eq(coerce({ theme: "light", listWidth: "wide" }), { ...DEFAULTS, theme: "light" });
   });
 
   test("the list width is clamped, not rejected", () => {
@@ -17,7 +17,14 @@ suite("prefs / coerce", () => {
     eq(coerce({ listWidth: NaN }).listWidth, DEFAULTS.listWidth);
   });
 
-  test("only layout and theme are kept — a token smuggled in is dropped", () => {
-    eq(Object.keys(coerce({ theme: "dark", token: "eyJhbGciOiJIUzI1NiJ9.e30.x" })).sort(), ["listWidth", "theme"]);
+  test("only preferences are kept — a token smuggled in is dropped", () => {
+    eq(Object.keys(coerce({ theme: "dark", token: "eyJhbGciOiJIUzI1NiJ9.e30.x" })).sort(),
+      ["autoReadPage", "listWidth", "theme"]);
+  });
+
+  test("the page reader stays off until it has been chosen, and then stays on", () => {
+    eq(coerce({}).autoReadPage, false, "never on by default");
+    eq(coerce({ autoReadPage: true }).autoReadPage, true, "a choice survives a restart");
+    eq(coerce({ autoReadPage: "yes" }).autoReadPage, false, "only a real boolean counts");
   });
 });

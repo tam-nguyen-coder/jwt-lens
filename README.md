@@ -113,10 +113,15 @@ whatever you were in the middle of. If your app took its own copy of `fetch` bef
 was in place, a second button reloads with the reader ahead of the app's scripts; that is the
 only case that costs you the page's state.
 
-It is opt-in because, unlike everything else here, it does change the page. It still needs no
-permissions, still only touches the tab whose DevTools you opened, forwards every call
-untouched, swallows its own errors so a bug in it cannot break the app you are debugging, and
-is gone the moment you close DevTools. Nothing is uploaded either way.
+**Turning it on keeps it on.** Choosing it once sets a preference, and from then on the panel
+does it as soon as it opens — you are back to just opening DevTools. The eye in the toolbar
+shows whether it is on and turns it off again. It also goes back in by itself after you reload
+or navigate, which would otherwise throw it away with the old document.
+
+It is opt-in for that first choice because, unlike everything else here, it does change the
+page. It still needs no permissions, still only touches the tab whose DevTools you opened,
+forwards every call untouched, swallows its own errors so a bug in it cannot break the app you
+are debugging, and is gone the moment you close DevTools. Nothing is uploaded either way.
 
 ## Nothing is stored
 
@@ -133,6 +138,8 @@ stored object is dropped on the way back in.
 | `⌘V` | Decode whatever is in the clipboard — anywhere in the panel, no field to focus |
 | drag & drop | A token or a file containing one |
 | `⌘⌫` | Forget every token |
+
+The toolbar's eye toggles reading the page directly, and remembers the choice.
 
 ## When it finds nothing
 
@@ -178,7 +185,7 @@ It is how the screenshots are taken and how the UI is checked without Chrome.
 
 ```bash
 npm run typecheck
-npm test             # 98 checks over the pure modules
+npm test             # 99 checks over the pure modules
 npm run build        # tsc, then vite → dist/
 ```
 
