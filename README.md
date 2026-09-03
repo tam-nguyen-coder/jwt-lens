@@ -107,6 +107,18 @@ stored object is dropped on the way back in.
 | drag & drop | A token or a file containing one |
 | `⌘⌫` | Forget every token |
 
+## When it finds nothing
+
+An empty list has several very different causes, so the panel reports what it saw rather than
+leaving you to guess: how many requests arrived, how many carried headers at all, how many had
+an `Authorization`, how many held anything JWT-shaped, and which header names turned up. The
+advice under the table follows from those counts — most usefully, "DevTools handed over these
+requests without any headers", which means the Network panel was never recording and a reload
+with it open will fix it.
+
+If it ever says a JWT-shaped string would not decode, that is a bug here rather than a quirk
+of your app; the counts are what tell the two apart.
+
 ## Privacy
 
 [`PRIVACY.md`](PRIVACY.md) — collects nothing, sends nothing, stores no tokens.
@@ -137,7 +149,7 @@ It is how the screenshots are taken and how the UI is checked without Chrome.
 
 ```bash
 npm run typecheck
-npm test             # 73 checks over the pure modules
+npm test             # 80 checks over the pure modules
 npm run build        # tsc, then vite → dist/
 ```
 

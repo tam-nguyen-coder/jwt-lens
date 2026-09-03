@@ -23,6 +23,26 @@ export interface Sighting {
   detail: string;
 }
 
+/**
+ * What the panel actually saw. Kept so an empty list can explain itself: on a
+ * busy app "no tokens" has several very different causes, and guessing between
+ * them from the outside is exactly the thing this tool exists to avoid.
+ */
+export interface Diagnostics {
+  requests: number;
+  /** Requests that arrived carrying any request headers at all. */
+  withHeaders: number;
+  withAuthHeader: number;
+  /** Authorization values using a Bearer/JWT scheme. */
+  withBearer: number;
+  /** Requests where something JWT-shaped appeared anywhere. */
+  jwtShaped: number;
+  /** JWT-shaped but rejected by the decoder — that would be a bug here. */
+  rejected: number;
+  /** Distinct request header names seen, most frequent first. */
+  headerNames: string[];
+}
+
 export interface Entry {
   token: string;
   jwt: Jwt;
@@ -58,12 +78,18 @@ export class TokenStore {
   /** Requests seen, whether or not they carried a token — the denominator. */
   requests = 0;
   withTokens = 0;
+  private diag = { withHeaders: 0, withAuthHeader: 0, withBearer: 0, jwtShaped: 0, rejected: 0 };
+  private headerCounts = new Map<string, number>();
 
   /** Feed one request in; returns the entries that are new or newly updated. */
   add(facts: RequestFacts): Entry[] {
     this.requests++;
+    const shaped = this.observe(facts);
     const found = extractTokens(facts);
-    if (found.length === 0) return [];
+    if (found.length === 0) {
+      if (shaped) this.diag.rejected++;
+      return [];
+    }
     this.withTokens++;
 
     const touched: Entry[] = [];
@@ -107,6 +133,39 @@ export class TokenStore {
       touched.push(entry);
     }
     return touched;
+  }
+
+  /** Record what a request looked like, so an empty list can say why. */
+  private observe(facts: RequestFacts): boolean {
+    const headers = facts.requestHeaders;
+    if (headers.length > 0) this.diag.withHeaders++;
+    for (const h of headers) {
+      const name = h.name.toLowerCase();
+      if (this.headerCounts.size < 200 || this.headerCounts.has(name)) {
+        this.headerCounts.set(name, (this.headerCounts.get(name) ?? 0) + 1);
+      }
+    }
+    const auth = headers.find((h) => {
+      const n = h.name.toLowerCase();
+      return n === "authorization" || n === "proxy-authorization";
+    });
+    if (auth) {
+      this.diag.withAuthHeader++;
+      if (/^\s*(bearer|jwt)\s+/i.test(auth.value)) this.diag.withBearer++;
+    }
+    const shaped = headers.some((h) => h.value.includes("eyJ"))
+      || facts.url.includes("eyJ")
+      || (facts.requestBody?.includes("eyJ") ?? false)
+      || (facts.responseBody?.includes("eyJ") ?? false);
+    if (shaped) this.diag.jwtShaped++;
+    return shaped;
+  }
+
+  diagnostics(): Diagnostics {
+    const headerNames = [...this.headerCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name);
+    return { requests: this.requests, ...this.diag, headerNames };
   }
 
   /** A token typed or pasted by hand, with no request behind it. */
@@ -154,5 +213,7 @@ export class TokenStore {
     this.byToken.clear();
     this.requests = 0;
     this.withTokens = 0;
+    this.diag = { withHeaders: 0, withAuthHeader: 0, withBearer: 0, jwtShaped: 0, rejected: 0 };
+    this.headerCounts.clear();
   }
 }

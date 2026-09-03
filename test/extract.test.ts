@@ -267,3 +267,71 @@ suite("store / rotation chains", () => {
     ok(identityOf(a as never) !== identityOf(c as never), "a different issuer is a different identity");
   });
 });
+
+suite("store / diagnostics", () => {
+  test("a request with no headers at all is reported as such", () => {
+    const store = new TokenStore();
+    store.add(req({ requestHeaders: [] }));
+    const d = store.diagnostics();
+    eq(d.requests, 1);
+    eq(d.withHeaders, 0);
+    eq(d.withAuthHeader, 0);
+    eq(d.jwtShaped, 0);
+  });
+
+  test("headers without an Authorization are told apart from a missing header set", () => {
+    const store = new TokenStore();
+    store.add(req({ requestHeaders: [{ name: "accept", value: "application/json" }] }));
+    const d = store.diagnostics();
+    eq(d.withHeaders, 1);
+    eq(d.withAuthHeader, 0);
+    eq(d.headerNames, ["accept"]);
+  });
+
+  test("an opaque bearer token counts as an Authorization but not as JWT-shaped", () => {
+    const store = new TokenStore();
+    store.add(req({ requestHeaders: [{ name: "authorization", value: "Bearer 8f3c1a2e-not-a-jwt" }] }));
+    const d = store.diagnostics();
+    eq(d.withAuthHeader, 1);
+    eq(d.withBearer, 1);
+    eq(d.jwtShaped, 0, "nothing to decode is not the same as failing to decode");
+    eq(d.rejected, 0);
+  });
+
+  test("JWT-shaped but undecodable is counted as a rejection, which would be our bug", () => {
+    const store = new TokenStore();
+    store.add(req({ requestHeaders: [{ name: "authorization", value: "Bearer eyJvery.broken" }] }));
+    const d = store.diagnostics();
+    eq(d.jwtShaped, 1);
+    eq(d.rejected, 1);
+    eq(store.size, 0);
+  });
+
+  test("a request that yields a token is not counted as a rejection", () => {
+    const store = new TokenStore();
+    store.add(req({ requestHeaders: [{ name: "authorization", value: `Bearer ${ACCESS}` }] }));
+    const d = store.diagnostics();
+    eq(d.jwtShaped, 1);
+    eq(d.rejected, 0);
+    eq(store.size, 1);
+  });
+
+  test("header names are collected across requests, most frequent first", () => {
+    const store = new TokenStore();
+    for (let i = 0; i < 3; i++) {
+      store.add(req({ requestHeaders: [{ name: "Accept", value: "*/*" }, { name: "X-Trace", value: "1" }] }));
+    }
+    store.add(req({ requestHeaders: [{ name: "cookie", value: "a=1" }] }));
+    eq(store.diagnostics().headerNames.slice(0, 2), ["accept", "x-trace"]);
+  });
+
+  test("clearing resets the diagnosis too", () => {
+    const store = new TokenStore();
+    store.add(req({ requestHeaders: [{ name: "authorization", value: `Bearer ${ACCESS}` }] }));
+    store.clear();
+    const d = store.diagnostics();
+    eq(d.requests, 0);
+    eq(d.withAuthHeader, 0);
+    eq(d.headerNames, []);
+  });
+});

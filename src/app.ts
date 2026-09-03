@@ -11,6 +11,7 @@ import { decodeJwt, expiryOf, formatRelative, formatTime, isJwt, labelOf } from 
 import type { Jwt, Note } from "./jwt.ts";
 import type { RequestFacts, Where } from "./extract.ts";
 import { TokenStore } from "./store.ts";
+import type { Diagnostics } from "./store.ts";
 import { loadPrefs, savePrefs } from "./prefs.ts";
 import type { Theme } from "./prefs.ts";
 
@@ -58,6 +59,52 @@ const WHERE_SHORT: Record<Where, string> = {
   body: "body",
   "request-body": "req body",
 };
+
+/**
+ * Why the list is empty. On a busy app "no tokens" has several very different
+ * causes and they need different fixes, so the panel reports what it saw rather
+ * than leaving the user to guess — which is the exact failure this tool exists
+ * to end.
+ */
+function diagnosisHtml(d: Diagnostics): string {
+  const rows: [string, string][] = [
+    ["requests seen", String(d.requests)],
+    ["with request headers", `${d.withHeaders}`],
+    ["with an Authorization header", `${d.withAuthHeader}`],
+    ["using a Bearer scheme", `${d.withBearer}`],
+    ["containing a JWT-shaped string", `${d.jwtShaped}`],
+  ];
+
+  let advice: string;
+  if (d.withHeaders === 0) {
+    advice = "DevTools handed over these requests without any headers. Open the Network"
+      + " panel once so it records them, then reload the page and press Rescan.";
+  } else if (d.withAuthHeader === 0) {
+    advice = "None of them carried an Authorization header. If your app sends the token"
+      + " another way — a cookie, a custom header, a query parameter — it should still be"
+      + " found; if this is a CORS setup you may be seeing only OPTIONS preflights, which"
+      + " never carry credentials.";
+  } else if (d.jwtShaped === 0) {
+    advice = "Authorization headers were present but none of them held a JWT. The token is"
+      + " probably opaque — a random session id rather than a signed token — and there is"
+      + " nothing here to decode.";
+  } else if (d.rejected > 0) {
+    advice = `${d.rejected} request${d.rejected === 1 ? "" : "s"} carried something JWT-shaped`
+      + " that would not decode. That is a bug in this tool — please report it with the"
+      + " Authorization header value.";
+  } else {
+    advice = "Nothing matched yet.";
+  }
+
+  const names = d.headerNames.slice(0, 14);
+  return `<div class="diag">
+    <p class="diag-lead">No JWT in ${d.requests} request${d.requests === 1 ? "" : "s"}.</p>
+    <table class="diag-table">${rows.map(([k, v]) =>
+      `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
+    <p class="diag-advice">${esc(advice)}</p>
+    ${names.length ? `<p class="diag-heads"><span>request headers seen</span> ${names.map(esc).join(" · ")}</p>` : ""}
+  </div>`;
+}
 
 function esc(text: string): string {
   return text.replace(/[&<>"]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : "&quot;"));
@@ -160,7 +207,9 @@ export function mountApp(source: Source | null, hintOverride?: string) {
   function renderList() {
     const chains = store.chains();
     if (chains.length === 0) {
-      listEl.innerHTML = `<p class="empty">${esc(hintOverride ?? source?.hint ?? "Paste a token to decode it.")}</p>`;
+      listEl.innerHTML = store.requests > 0
+        ? diagnosisHtml(store.diagnostics())
+        : `<p class="empty">${esc(hintOverride ?? source?.hint ?? "Paste a token to decode it.")}</p>`;
       return;
     }
     const now = nowSeconds();
@@ -398,7 +447,11 @@ export function mountApp(source: Source | null, hintOverride?: string) {
   const feed = (facts: RequestFacts) => {
     if (paused) return;
     const touched = store.add(facts);
-    if (touched.length === 0) { renderStatus(); return; }
+    if (touched.length === 0) {
+      renderStatus();
+      if (store.size === 0) renderList();
+      return;
+    }
     // Select the first token to arrive, so a panel left open lands on something.
     if (!selected) selected = touched[0]!.token;
     render();
