@@ -24,6 +24,9 @@ export interface Source {
   rescan?(onRequest: (facts: RequestFacts) => void): void;
   /** Lines about what the host itself reported, shown when nothing was found. */
   stats?(): string[];
+  /** Read requests from inside the page, for hosts that will not report them. */
+  watchPage?(): void;
+  watchingPage?(): boolean;
   stop(): void;
 }
 
@@ -68,7 +71,7 @@ const WHERE_SHORT: Record<Where, string> = {
  * than leaving the user to guess — which is the exact failure this tool exists
  * to end.
  */
-function diagnosisHtml(d: Diagnostics, hostStats: string[]): string {
+function diagnosisHtml(d: Diagnostics, hostStats: string[], canWatch: boolean, watching: boolean): string {
   const rows: [string, string][] = [
     ["requests seen", String(d.requests)],
     ["with request headers", `${d.withHeaders}`],
@@ -103,6 +106,18 @@ function diagnosisHtml(d: Diagnostics, hostStats: string[]): string {
     advice = "Nothing matched yet.";
   }
 
+  // Reading the page is a real change to it, so it is offered rather than done,
+  // and only once the ordinary route has visibly failed.
+  const offer = !canWatch ? ""
+    : watching
+      ? `<p class="diag-advice">Watching the page directly. Reload it if nothing appears — the shim goes in before the app's own scripts.</p>`
+      : `<div class="diag-offer">
+          <button class="btn-offer" type="button" data-act="watch-page">Read the token from the page instead</button>
+          <span>Reloads this tab with a small shim in front of your app that reads the
+          <code>Authorization</code> header as the app sets it. It stays in this tab, nothing
+          is uploaded, and it lasts until you close DevTools.</span>
+        </div>`;
+
   const list = (label: string, items: string[], limit: number) => items.length
     ? `<p class="diag-heads"><span>${esc(label)}</span> ${items.slice(0, limit).map(esc).join(" · ")}</p>`
     : "";
@@ -116,6 +131,7 @@ function diagnosisHtml(d: Diagnostics, hostStats: string[]): string {
     ${list("hosts requested", d.hosts, 8)}
     ${list("resource types", d.resourceTypes, 10)}
     ${list("request headers seen", d.headerNames, 16)}
+    ${offer}
   </div>`;
 }
 
@@ -220,9 +236,21 @@ export function mountApp(source: Source | null, hintOverride?: string) {
   function renderList() {
     const chains = store.chains();
     if (chains.length === 0) {
+      const wireOffer = () => {
+        listEl.querySelector('[data-act="watch-page"]')?.addEventListener("click", () => {
+          source?.watchPage?.();
+          toast("Reloading the page with the reader in front of it");
+        });
+      };
       listEl.innerHTML = store.requests > 0
-        ? diagnosisHtml(store.diagnostics(), source?.stats?.() ?? [])
+        ? diagnosisHtml(
+            store.diagnostics(),
+            source?.stats?.() ?? [],
+            typeof source?.watchPage === "function",
+            source?.watchingPage?.() ?? false,
+          )
         : `<p class="empty">${esc(hintOverride ?? source?.hint ?? "Paste a token to decode it.")}</p>`;
+      wireOffer();
       return;
     }
     const now = nowSeconds();
@@ -321,8 +349,24 @@ export function mountApp(source: Source | null, hintOverride?: string) {
     renderStatus();
   }
 
+  /**
+   * The diagnosis is built from answers that arrive after the first paint — the
+   * page probe, later polls — so it is rebuilt when, and only when, what it
+   * would say has actually changed. Rebuilding it every second would fight the
+   * button it contains.
+   */
+  let lastDiagKey = "";
+  function refreshDiagnosis() {
+    if (store.size > 0 || store.requests === 0) return;
+    const key = `${store.requests}|${(source?.stats?.() ?? []).join("|")}|${source?.watchingPage?.() ?? false}`;
+    if (key === lastDiagKey) return;
+    lastDiagKey = key;
+    renderList();
+  }
+
   /** Once a second, refresh only the countdowns — re-rendering everything would fight the scroll. */
   function tick() {
+    refreshDiagnosis();
     const now = nowSeconds();
     for (const el of listEl.querySelectorAll<HTMLElement>(".row-exp")) {
       const exp = el.dataset["exp"] ? Number(el.dataset["exp"]) : null;

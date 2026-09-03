@@ -22,6 +22,8 @@
 
 import type { Source } from "./app.ts";
 import type { RequestFacts } from "./extract.ts";
+import { canReadPage, drainPage, installShim, probePage, shimInstalled } from "./page-watch.ts";
+import type { PageProbe } from "./page-watch.ts";
 
 /** Bodies worth scanning, and a ceiling so a big download cannot stall anything. */
 const TEXTUAL = /json|text|xml|javascript|urlencoded|form-data/i;
@@ -86,6 +88,8 @@ export function createDevtoolsSource(): Source {
   const seen = new Set<string>();
   const stats: DevtoolsStats = { live: 0, har: 0, polls: 0 };
   let timer: ReturnType<typeof setInterval> | undefined;
+  let probe: PageProbe | null = null;
+  let watching = false;
 
   const pump = (entry: HarEntry, onRequest: (f: RequestFacts) => void, withBody: boolean) => {
     const key = keyOf(entry);
@@ -120,10 +124,32 @@ export function createDevtoolsSource(): Source {
       } catch { /* optional across hosts */ }
 
       readHar(onRequest);
+      probePage((p) => { probe = p; });
+      // If the page was reloaded with the shim, pick the watch back up.
+      shimInstalled((yes) => { watching = yes; });
+
       // Polling is the belt to the live event's braces: it costs one cheap call
       // every couple of seconds and it means a silent listener cannot hide an
       // app's entire API traffic, which is precisely what happened.
-      timer = setInterval(() => readHar(onRequest), POLL_MS);
+      timer = setInterval(() => {
+        readHar(onRequest);
+        probePage((p) => { probe = p; });
+        if (watching) drainPage(onRequest);
+      }, POLL_MS);
+    },
+
+    /**
+     * The escape hatch for a browser that will not report credentialed requests:
+     * reload with a shim in front of the app so the Authorization header can be
+     * read as the app sets it. Opt-in, because it does change the page.
+     */
+    watchPage: !canReadPage() ? undefined : function watchPage() {
+      watching = true;
+      installShim();
+    },
+
+    watchingPage() {
+      return watching;
     },
 
     rescan(onRequest) {
@@ -131,7 +157,15 @@ export function createDevtoolsSource(): Source {
     },
 
     stats() {
-      return [`live events ${stats.live}`, `HAR entries ${stats.har}`, `HAR reads ${stats.polls}`];
+      const lines = [`live events ${stats.live}`, `HAR entries ${stats.har}`, `HAR reads ${stats.polls}`];
+      if (probe) {
+        lines.push(probe.pageXhr < 0
+          ? `page says: ${probe.error ?? "unavailable"}`
+          : `the page itself made ${probe.pageXhr} fetch/XHR calls`);
+        if (probe.serviceWorker) lines.push("a service worker is handling requests");
+      }
+      if (watching) lines.push("watching the page directly");
+      return lines;
     },
 
     stop() {

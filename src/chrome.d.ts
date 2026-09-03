@@ -52,6 +52,13 @@ declare namespace chrome {
     }
     namespace inspectedWindow {
       const tabId: number;
+      /** Runs an expression in the inspected page and hands back its value. */
+      function eval(
+        expression: string,
+        callback?: (result: unknown, info?: { isError?: boolean; isException?: boolean; value?: string; description?: string }) => void,
+      ): void;
+      /** `injectedScript` runs before any of the page's own scripts. */
+      function reload(options?: { ignoreCache?: boolean; injectedScript?: string }): void;
     }
   }
 }

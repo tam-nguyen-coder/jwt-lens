@@ -22,6 +22,16 @@ grant and only exposes the tab whose DevTools the user has deliberately opened.
 
 The extension cannot see any other tab, and sees nothing at all when DevTools is closed.
 
+## Reading the page (opt-in)
+
+If Chrome will not report your app's API calls to the extension, the panel offers a button
+that reloads the tab with a small script injected ahead of your app. That script wraps
+`fetch` and `XMLHttpRequest` so the `Authorization` header can be read as your app sets it.
+
+It runs only after you press that button, only in the tab whose DevTools you opened, forwards
+every call to the browser untouched, and disappears when you close DevTools or navigate away
+without re-enabling it. What it reads goes to the panel in front of you and nowhere else.
+
 ## Data collection
 
 None. Specifically, JWT Lens does not collect, transmit, sell or share:

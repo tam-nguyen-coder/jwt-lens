@@ -92,6 +92,24 @@ opened DevTools on. An extension that watched every tab would need `<all_urls>` 
 right to read `Authorization` headers everywhere — which, for a tool that exists to display
 credentials, is not a trade worth making.
 
+## When Chrome will not report the requests
+
+On some setups `chrome.devtools.network` reports scripts, stylesheets, fonts, documents and
+every CORS **preflight** to an API host, and not one of the `xhr`/`fetch` calls behind them —
+the credentialed requests, which are the only ones that carry a token. The preflights prove
+the calls happened; Chrome simply does not hand them over. No amount of reading the HAR will
+find a token in that browser.
+
+For that case the panel offers a second route, and only once the ordinary one has visibly
+failed: **Read the token from the page instead**. It reloads the tab with a small shim
+injected ahead of your app's own scripts, wrapping `fetch` and `XMLHttpRequest` so the
+`Authorization` header is read as your app sets it.
+
+It is opt-in because, unlike everything else here, it does change the page. It still needs no
+permissions, still only touches the tab whose DevTools you opened, forwards every call
+untouched, swallows its own errors so a bug in it cannot break the app you are debugging, and
+is gone the moment you close DevTools. Nothing is uploaded either way.
+
 ## Nothing is stored
 
 This tool deliberately breaks the rule the rest of `dev-tools/` follows. The others restore
@@ -136,6 +154,7 @@ of your app; the counts are what tell the two apart.
 | `src/panel.ts` | Mounts the app, with the DevTools source when there is one |
 | `src/devtools-source.ts` | `chrome.devtools.network` → `RequestFacts`: backfill, live feed, dedupe |
 | `src/web.ts` | The web entry, plus the `?demo` capture |
+| `src/page-watch.ts` | Asking the page directly: the read-only probe and the opt-in shim |
 | `src/prefs.ts` | The little that is allowed to persist |
 | `src/chrome.d.ts` | The four corners of the extension API this uses, hand-declared |
 | `test/` | The pure-logic suites and their harness |
@@ -151,7 +170,7 @@ It is how the screenshots are taken and how the UI is checked without Chrome.
 
 ```bash
 npm run typecheck
-npm test             # 89 checks over the pure modules
+npm test             # 98 checks over the pure modules
 npm run build        # tsc, then vite → dist/
 ```
 
