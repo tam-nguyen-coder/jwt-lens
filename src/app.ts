@@ -80,8 +80,15 @@ function diagnosisHtml(d: Diagnostics, hostStats: string[], canWatch: boolean, w
     ["containing a JWT-shaped string", `${d.jwtShaped}`],
   ];
 
+  const silent = hostStats.some((s) => s === "live events 0")
+    && hostStats.some((s) => s === "HAR entries 0");
+
   let advice: string;
-  if (d.withHeaders === 0) {
+  if (silent) {
+    advice = "DevTools reported nothing at all — no live events and an empty log. It does not"
+      + " record the network until its own Network panel has been opened at least once in this"
+      + " window. Open Network, reload the page, then come back.";
+  } else if (d.withHeaders === 0) {
     advice = "DevTools handed over these requests without any headers. Open the Network"
       + " panel once so it records them, then reload the page and press Rescan.";
   } else if (d.withAuthHeader === 0 && !d.resourceTypes.some((t) => /^(xhr|fetch)\b/.test(t))) {
@@ -242,7 +249,8 @@ export function mountApp(source: Source | null, hintOverride?: string) {
           toast("Reloading the page with the reader in front of it");
         });
       };
-      listEl.innerHTML = store.requests > 0
+      const reportedNothing = (source?.stats?.() ?? []).some((s) => s === "live events 0");
+      listEl.innerHTML = store.requests > 0 || reportedNothing
         ? diagnosisHtml(
             store.diagnostics(),
             source?.stats?.() ?? [],

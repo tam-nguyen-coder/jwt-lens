@@ -97,8 +97,14 @@ credentials, is not a trade worth making.
 On some setups `chrome.devtools.network` reports scripts, stylesheets, fonts, documents and
 every CORS **preflight** to an API host, and not one of the `xhr`/`fetch` calls behind them —
 the credentialed requests, which are the only ones that carry a token. The preflights prove
-the calls happened; Chrome simply does not hand them over. No amount of reading the HAR will
-find a token in that browser.
+the calls happened; the extension was simply never told about them.
+
+This is not Chrome's normal behaviour, and it is worth being precise about that. A lab that
+reproduces the shape of it — two origins, genuine CORS preflights, the extension loaded for
+real in Chrome for Testing — sees `fetch` reported with its `Authorization` header intact,
+with or without a service worker handling the calls. One thing the lab *did* pin down: until
+the DevTools **Network** panel has been opened once in that window, the API reports nothing at
+all, not even an empty-ish log. The panel now says so when it sees that.
 
 For that case the panel offers a second route, and only once the ordinary one has visibly
 failed: **Read the token from the page instead**. It reloads the tab with a small shim

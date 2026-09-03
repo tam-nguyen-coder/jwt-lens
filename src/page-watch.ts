@@ -1,16 +1,19 @@
 /* ---------------------------------------------------------------------------
    Asking the page directly.
 
-   On a real app, `chrome.devtools.network` delivered 136 requests during a full
+   On one real app, `chrome.devtools.network` delivered 136 requests during a full
    reload — scripts, stylesheets, fonts, documents, a websocket, and every CORS
-   preflight to the API hosts — and not one `xhr` or `fetch`. The preflights are
-   the proof that the calls happened: Chrome simply does not hand the credentialed
-   requests to the extension. No amount of reading the HAR will ever find a token
-   in that browser.
+   preflight to the API hosts — and not one `xhr` or `fetch`. The preflights prove
+   those calls happened; the extension was never told about them.
 
-   So there is a second way in, and it needs no permission either. A DevTools
-   panel may run code in the page it is inspecting, and a page always knows what
-   it asked for:
+   That is not how Chrome usually behaves. A lab built to reproduce it — two
+   origins, real preflights, the extension loaded for real — gets `fetch` and its
+   Authorization header reported normally, with or without a service worker in
+   play. So the omission is specific to some setups rather than a rule, and
+   whatever causes it, reading the HAR cannot be the only way in.
+
+   The second way needs no permission either. A DevTools panel may run code in
+   the page it is inspecting, and a page always knows what it asked for:
 
    - `probePage` is read-only. It asks the page how many fetch/XHR calls its own
      Resource Timing log contains, and whether a service worker is driving them,
