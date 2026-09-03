@@ -67,11 +67,12 @@ npm install && npm run build
 Then in Chrome: **Extensions → Manage extensions → Developer mode → Load unpacked**, and
 pick this repo's `dist/` folder. Open DevTools on any tab and take the **JWT** tab.
 
-When the panel opens it reads everything DevTools has already recorded (`getHAR`) and then
-listens for what follows, so an app that authenticated during page load still shows up. What
-neither can recover is traffic from before DevTools was open at all — reload the page for
-that, or press **Rescan** to re-read the log. To check the extension in one step, open the
-web build at `/?emit`: the page sends two same-origin requests carrying a bearer token.
+When the panel opens it reads everything DevTools has already recorded (`getHAR`), listens
+for what follows, and re-reads the log every couple of seconds — three ways in, because the
+live event alone is not dependable. What none of them can recover is traffic from before
+DevTools was open at all: reload the page for that, or press **Rescan**. To check the
+extension in one step, open the web build at `/?emit`: the page sends two same-origin
+requests carrying a bearer token.
 
 To submit it to the store, `npm run package` writes `jwt-lens.zip` with `manifest.json` at
 the archive root — the shape the dashboard wants. [`store/LISTING.md`](store/LISTING.md) has
@@ -150,7 +151,7 @@ It is how the screenshots are taken and how the UI is checked without Chrome.
 
 ```bash
 npm run typecheck
-npm test             # 80 checks over the pure modules
+npm test             # 89 checks over the pure modules
 npm run build        # tsc, then vite → dist/
 ```
 
@@ -158,7 +159,9 @@ npm run build        # tsc, then vite → dist/
 DOM: decoding and its failure modes, unicode payloads, millisecond `exp` values, the expiry
 boundary, every extraction surface, deduplication, the sighting cap, and rotation grouping.
 The DevTools glue is covered too, against a fake `chrome` — backfill, the live feed, the
-dedupe between them, rescan, and what a navigation resets. The list itself is checked in a
+timer poll, the dedupe between all three, rescan, what a navigation resets, and the rule
+that earned its own tests: a request is delivered before its body is even requested, so a
+`getContent` that hangs or throws cannot lose it. The list itself is checked in a
 browser against `?demo`.
 
 One `dist/` serves both targets: Cloudflare Pages publishes `index.html`, and Chrome loads

@@ -84,19 +84,24 @@ export class TokenStore {
   withTokens = 0;
   private diag = { withHeaders: 0, withAuthHeader: 0, withBearer: 0, jwtShaped: 0, rejected: 0 };
   private headerCounts = new Map<string, number>();
+  private seenIds = new Set<string>();
   private hostCounts = new Map<string, number>();
   private typeCounts = new Map<string, number>();
 
   /** Feed one request in; returns the entries that are new or newly updated. */
   add(facts: RequestFacts): Entry[] {
-    this.requests++;
-    const shaped = this.observe(facts);
+    // A response body arrives after the request it belongs to, under the same
+    // id. That is the same request knowing more about itself, not a new one.
+    const amendment = facts.id !== undefined && this.seenIds.has(facts.id);
+    if (facts.id !== undefined) this.seenIds.add(facts.id);
+    if (!amendment) this.requests++;
+    const shaped = this.observe(facts, amendment);
     const found = extractTokens(facts);
     if (found.length === 0) {
-      if (shaped) this.diag.rejected++;
+      if (shaped && !amendment) this.diag.rejected++;
       return [];
     }
-    this.withTokens++;
+    if (!amendment) this.withTokens++;
 
     const touched: Entry[] = [];
     for (const hit of found) {
@@ -142,8 +147,12 @@ export class TokenStore {
   }
 
   /** Record what a request looked like, so an empty list can say why. */
-  private observe(facts: RequestFacts): boolean {
+  private observe(facts: RequestFacts, amendment = false): boolean {
     const headers = facts.requestHeaders;
+    if (amendment) {
+      // Only the body is new; counting the rest again would inflate everything.
+      return (facts.responseBody?.includes("eyJ") ?? false);
+    }
     if (headers.length > 0) this.diag.withHeaders++;
     for (const h of headers) {
       const name = h.name.toLowerCase();
@@ -233,5 +242,6 @@ export class TokenStore {
     this.headerCounts.clear();
     this.hostCounts.clear();
     this.typeCounts.clear();
+    this.seenIds.clear();
   }
 }

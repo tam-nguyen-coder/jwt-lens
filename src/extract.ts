@@ -17,6 +17,8 @@ export interface HeaderPair { name: string; value: string }
 
 /** A request, flattened out of whatever the host handed us. */
 export interface RequestFacts {
+  /** Stable per request. A second delivery under the same id is an amendment. */
+  id?: string;
   method: string;
   url: string;
   status: number;

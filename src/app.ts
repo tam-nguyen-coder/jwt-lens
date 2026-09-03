@@ -22,6 +22,8 @@ export interface Source {
   start(onRequest: (facts: RequestFacts) => void): void;
   /** Re-read whatever the host has already recorded. Shows a button when present. */
   rescan?(onRequest: (facts: RequestFacts) => void): void;
+  /** Lines about what the host itself reported, shown when nothing was found. */
+  stats?(): string[];
   stop(): void;
 }
 
@@ -66,7 +68,7 @@ const WHERE_SHORT: Record<Where, string> = {
  * than leaving the user to guess — which is the exact failure this tool exists
  * to end.
  */
-function diagnosisHtml(d: Diagnostics): string {
+function diagnosisHtml(d: Diagnostics, hostStats: string[]): string {
   const rows: [string, string][] = [
     ["requests seen", String(d.requests)],
     ["with request headers", `${d.withHeaders}`],
@@ -110,6 +112,7 @@ function diagnosisHtml(d: Diagnostics): string {
     <table class="diag-table">${rows.map(([k, v]) =>
       `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
     <p class="diag-advice">${esc(advice)}</p>
+    ${list("reported by DevTools", hostStats, 6)}
     ${list("hosts requested", d.hosts, 8)}
     ${list("resource types", d.resourceTypes, 10)}
     ${list("request headers seen", d.headerNames, 16)}
@@ -218,7 +221,7 @@ export function mountApp(source: Source | null, hintOverride?: string) {
     const chains = store.chains();
     if (chains.length === 0) {
       listEl.innerHTML = store.requests > 0
-        ? diagnosisHtml(store.diagnostics())
+        ? diagnosisHtml(store.diagnostics(), source?.stats?.() ?? [])
         : `<p class="empty">${esc(hintOverride ?? source?.hint ?? "Paste a token to decode it.")}</p>`;
       return;
     }
