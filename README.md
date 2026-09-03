@@ -111,10 +111,11 @@ stored object is dropped on the way back in.
 
 An empty list has several very different causes, so the panel reports what it saw rather than
 leaving you to guess: how many requests arrived, how many carried headers at all, how many had
-an `Authorization`, how many held anything JWT-shaped, and which header names turned up. The
-advice under the table follows from those counts — most usefully, "DevTools handed over these
-requests without any headers", which means the Network panel was never recording and a reload
-with it open will fix it.
+an `Authorization`, how many held anything JWT-shaped, plus the hosts, the Chrome resource
+types and the header names that turned up. The advice under the table follows from those
+counts — including the two that look identical from the outside and are not: no XHR or fetch
+traffic reported at all (the API calls are not reaching the panel), versus XHR traffic that
+arrived with every header except the one that matters.
 
 If it ever says a JWT-shaped string would not decode, that is a bug here rather than a quirk
 of your app; the counts are what tell the two apart.

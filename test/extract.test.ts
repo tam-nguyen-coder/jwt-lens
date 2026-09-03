@@ -325,6 +325,30 @@ suite("store / diagnostics", () => {
     eq(store.diagnostics().headerNames.slice(0, 2), ["accept", "x-trace"]);
   });
 
+  test("hosts and resource types are counted, most frequent first", () => {
+    const store = new TokenStore();
+    for (let i = 0; i < 3; i++) {
+      store.add(req({ url: "https://portal.example.com/app.js", resourceType: "script" }));
+    }
+    store.add(req({ url: "https://api.example.com/v1/me", resourceType: "xhr" }));
+    const d = store.diagnostics();
+    eq(d.hosts, ["portal.example.com 3", "api.example.com 1"]);
+    eq(d.resourceTypes, ["script 3", "xhr 1"]);
+  });
+
+  test("a request with no resource type is still counted somewhere", () => {
+    const store = new TokenStore();
+    store.add(req());
+    eq(store.diagnostics().resourceTypes, ["unknown 1"]);
+  });
+
+  test("an unparseable url does not lose the request", () => {
+    const store = new TokenStore();
+    store.add(req({ url: "not a url" }));
+    eq(store.diagnostics().hosts, ["? 1"]);
+    eq(store.diagnostics().requests, 1);
+  });
+
   test("clearing resets the diagnosis too", () => {
     const store = new TokenStore();
     store.add(req({ requestHeaders: [{ name: "authorization", value: `Bearer ${ACCESS}` }] }));
@@ -333,5 +357,7 @@ suite("store / diagnostics", () => {
     eq(d.requests, 0);
     eq(d.withAuthHeader, 0);
     eq(d.headerNames, []);
+    eq(d.hosts, []);
+    eq(d.resourceTypes, []);
   });
 });

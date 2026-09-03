@@ -27,6 +27,8 @@ export interface RequestFacts {
   /** A refresh call carries its token in the request, not the response. */
   requestBody?: string | null;
   responseBody?: string | null;
+  /** Chrome's non-standard HAR addition: document, script, xhr, fetch, … */
+  resourceType?: string;
 }
 
 export interface Found {

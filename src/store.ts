@@ -41,6 +41,10 @@ export interface Diagnostics {
   rejected: number;
   /** Distinct request header names seen, most frequent first. */
   headerNames: string[];
+  /** Hosts the requests went to, most frequent first. */
+  hosts: string[];
+  /** Chrome's resource types with their counts, e.g. "xhr 60". */
+  resourceTypes: string[];
 }
 
 export interface Entry {
@@ -80,6 +84,8 @@ export class TokenStore {
   withTokens = 0;
   private diag = { withHeaders: 0, withAuthHeader: 0, withBearer: 0, jwtShaped: 0, rejected: 0 };
   private headerCounts = new Map<string, number>();
+  private hostCounts = new Map<string, number>();
+  private typeCounts = new Map<string, number>();
 
   /** Feed one request in; returns the entries that are new or newly updated. */
   add(facts: RequestFacts): Entry[] {
@@ -145,6 +151,12 @@ export class TokenStore {
         this.headerCounts.set(name, (this.headerCounts.get(name) ?? 0) + 1);
       }
     }
+    let host = "?";
+    try { host = new URL(facts.url).host; } catch { /* keep the placeholder */ }
+    this.hostCounts.set(host, (this.hostCounts.get(host) ?? 0) + 1);
+    const type = facts.resourceType ?? "unknown";
+    this.typeCounts.set(type, (this.typeCounts.get(type) ?? 0) + 1);
+
     const auth = headers.find((h) => {
       const n = h.name.toLowerCase();
       return n === "authorization" || n === "proxy-authorization";
@@ -162,10 +174,14 @@ export class TokenStore {
   }
 
   diagnostics(): Diagnostics {
-    const headerNames = [...this.headerCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([name]) => name);
-    return { requests: this.requests, ...this.diag, headerNames };
+    const byCount = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]);
+    return {
+      requests: this.requests,
+      ...this.diag,
+      headerNames: byCount(this.headerCounts).map(([name]) => name),
+      hosts: byCount(this.hostCounts).map(([host, n]) => `${host} ${n}`),
+      resourceTypes: byCount(this.typeCounts).map(([type, n]) => `${type} ${n}`),
+    };
   }
 
   /** A token typed or pasted by hand, with no request behind it. */
@@ -215,5 +231,7 @@ export class TokenStore {
     this.withTokens = 0;
     this.diag = { withHeaders: 0, withAuthHeader: 0, withBearer: 0, jwtShaped: 0, rejected: 0 };
     this.headerCounts.clear();
+    this.hostCounts.clear();
+    this.typeCounts.clear();
   }
 }

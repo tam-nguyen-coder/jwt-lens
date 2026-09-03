@@ -29,6 +29,9 @@ export function baseFacts(entry: HarEntry): RequestFacts {
     requestHeaders: entry.request.headers ?? [],
     responseHeaders: entry.response?.headers ?? [],
     requestBody: entry.request.postData?.text ?? null,
+    // Non-standard, and the fastest way to see whether XHR/fetch traffic is
+    // being reported at all or only documents and assets.
+    resourceType: (entry as { _resourceType?: string })._resourceType,
   };
 }
 

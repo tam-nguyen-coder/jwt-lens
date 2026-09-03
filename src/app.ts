@@ -79,11 +79,16 @@ function diagnosisHtml(d: Diagnostics): string {
   if (d.withHeaders === 0) {
     advice = "DevTools handed over these requests without any headers. Open the Network"
       + " panel once so it records them, then reload the page and press Rescan.";
+  } else if (d.withAuthHeader === 0 && !d.resourceTypes.some((t) => /^(xhr|fetch)\b/.test(t))) {
+    advice = "No XHR or fetch traffic was reported at all — only documents and assets. The"
+      + " API calls are not reaching this panel, so check that DevTools is attached to the"
+      + " tab making them, and that they are not coming from a service worker, which"
+      + " DevTools reports separately.";
   } else if (d.withAuthHeader === 0) {
-    advice = "None of them carried an Authorization header. If your app sends the token"
-      + " another way — a cookie, a custom header, a query parameter — it should still be"
-      + " found; if this is a CORS setup you may be seeing only OPTIONS preflights, which"
-      + " never carry credentials.";
+    advice = "XHR/fetch traffic arrived but not one request carried an Authorization header,"
+      + " even though DevTools recorded the other headers. Either the token travels another"
+      + " way — a cookie or a custom header — or Chrome is withholding this header from"
+      + " extensions, which needs a different approach than reading the HAR.";
   } else if (d.jwtShaped === 0) {
     advice = "Authorization headers were present but none of them held a JWT. The token is"
       + " probably opaque — a random session id rather than a signed token — and there is"
@@ -96,13 +101,18 @@ function diagnosisHtml(d: Diagnostics): string {
     advice = "Nothing matched yet.";
   }
 
-  const names = d.headerNames.slice(0, 14);
+  const list = (label: string, items: string[], limit: number) => items.length
+    ? `<p class="diag-heads"><span>${esc(label)}</span> ${items.slice(0, limit).map(esc).join(" · ")}</p>`
+    : "";
+
   return `<div class="diag">
     <p class="diag-lead">No JWT in ${d.requests} request${d.requests === 1 ? "" : "s"}.</p>
     <table class="diag-table">${rows.map(([k, v]) =>
       `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>
     <p class="diag-advice">${esc(advice)}</p>
-    ${names.length ? `<p class="diag-heads"><span>request headers seen</span> ${names.map(esc).join(" · ")}</p>` : ""}
+    ${list("hosts requested", d.hosts, 8)}
+    ${list("resource types", d.resourceTypes, 10)}
+    ${list("request headers seen", d.headerNames, 16)}
   </div>`;
 }
 
