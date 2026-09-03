@@ -19,6 +19,8 @@ export interface Source {
   /** Shown in the empty state — how this host expects to be fed. */
   hint: string;
   start(onRequest: (facts: RequestFacts) => void): void;
+  /** Re-read whatever the host has already recorded. Shows a button when present. */
+  rescan?(onRequest: (facts: RequestFacts) => void): void;
   stop(): void;
 }
 
@@ -27,6 +29,7 @@ const ICONS: Record<string, string> = {
   pause: `<path d="M7.5 5v10M12.5 5v10"/>`,
   play: `<path d="M6.5 4.5v11l9-5.5z"/>`,
   clear: `<path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 9h5.6l.7-9"/>`,
+  rescan: `<path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3v3.5h-3.5"/>`,
   copy: `<rect x="7" y="7" width="9" height="9" rx="2"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>`,
   paste: `<rect x="4.5" y="4" width="11" height="13" rx="2"/><path d="M8 4V2.8h4V4"/><path d="M7.5 9h5M7.5 12h3"/>`,
   sun: `<circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.5 4.5 6 6M14 14l1.5 1.5M15.5 4.5 14 6M6 14l-1.5 1.5"/>`,
@@ -115,6 +118,7 @@ export function mountApp(source: Source | null, hintOverride?: string) {
       <span class="chip" id="chip" data-state="idle">0 tokens</span>
       <span class="grow"></span>
       <button class="ib" id="paste" title="Paste a token (⌘V anywhere)">${icon("paste")}<span class="ib-label">Paste</span></button>
+      <button class="ib" id="rescan" title="Re-read every request DevTools has recorded" ${source?.rescan ? "" : "hidden"}>${icon("rescan")}<span class="ib-label">Rescan</span></button>
       <span class="vr"></span>
       <button class="ib" id="pause" title="Stop watching requests" ${source ? "" : "hidden"}>${icon("pause")}</button>
       <button class="ib" id="clear" title="Forget every token (⌘⌫)">${icon("clear")}</button>
@@ -245,7 +249,7 @@ export function mountApp(source: Source | null, hintOverride?: string) {
     chipEl.dataset["state"] = paused ? "idle" : n > 0 ? "ok" : "idle";
     const carried = store.requests
       ? `${store.withTokens} of ${store.requests} requests carried a token`
-      : source ? "watching" : "";
+      : source ? "watching — 0 requests seen yet" : "";
     countsEl.textContent = paused ? "paused" : carried;
   }
 
@@ -391,12 +395,26 @@ export function mountApp(source: Source | null, hintOverride?: string) {
   render();
   setInterval(tick, 1000);
 
-  source?.start((facts) => {
+  const feed = (facts: RequestFacts) => {
     if (paused) return;
     const touched = store.add(facts);
     if (touched.length === 0) { renderStatus(); return; }
     // Select the first token to arrive, so a panel left open lands on something.
     if (!selected) selected = touched[0]!.token;
     render();
-  });
+  };
+
+  if (source?.rescan) {
+    $<HTMLButtonElement>("rescan").addEventListener("click", () => {
+      const before = store.size;
+      source.rescan!(feed);
+      // The host answers asynchronously, so report once it has had a moment.
+      setTimeout(() => {
+        const added = store.size - before;
+        toast(added > 0 ? `Found ${added} more token${added === 1 ? "" : "s"}` : "Nothing new in the recorded requests");
+      }, 400);
+    });
+  }
+
+  source?.start(feed);
 }
