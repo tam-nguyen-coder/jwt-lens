@@ -28,9 +28,14 @@ If Chrome will not report your app's API calls to the extension, the panel offer
 that reloads the tab with a small script injected ahead of your app. That script wraps
 `fetch` and `XMLHttpRequest` so the `Authorization` header can be read as your app sets it.
 
-It runs only after you turn it on, only in the tab whose DevTools you opened, forwards every
-call to the browser untouched, and disappears when you close DevTools. What it reads goes to
-the panel in front of you and nowhere else.
+It runs in two cases: when you turn it on with the eye in the toolbar, or when the ordinary
+route has demonstrably failed — twenty or more requests seen, no token in any of them, nothing
+reported as fetch or xhr, and the page itself reporting calls that were never handed over. In
+that second case the panel says so as it happens, and the eye switches it back off.
+
+Either way it runs only in the tab whose DevTools you opened, forwards every call to the
+browser untouched, and disappears when you close DevTools. What it reads goes to the panel in
+front of you and nowhere else.
 
 Turning it on is remembered, in the same `jwt-lens.v1` preference as your theme, so the panel
 does it again the next time it opens rather than asking every session. The eye in the toolbar

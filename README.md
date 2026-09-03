@@ -113,15 +113,22 @@ whatever you were in the middle of. If your app took its own copy of `fetch` bef
 was in place, a second button reloads with the reader ahead of the app's scripts; that is the
 only case that costs you the page's state.
 
-**Turning it on keeps it on.** Choosing it once sets a preference, and from then on the panel
-does it as soon as it opens — you are back to just opening DevTools. The eye in the toolbar
-shows whether it is on and turns it off again. It also goes back in by itself after you reload
-or navigate, which would otherwise throw it away with the old document.
+**You should not have to notice any of this**, so the panel makes the call itself — but only
+once the ordinary route has provably failed, on four counts at the same time: at least twenty
+requests to judge by, not one token among them, nothing at all reported as `fetch` or `xhr`,
+and the page itself saying it made some anyway. Then it starts reading the page and tells you
+it did. On a page where the normal route works, none of this ever happens.
 
-It is opt-in for that first choice because, unlike everything else here, it does change the
-page. It still needs no permissions, still only touches the tab whose DevTools you opened,
-forwards every call untouched, swallows its own errors so a bug in it cannot break the app you
-are debugging, and is gone the moment you close DevTools. Nothing is uploaded either way.
+It is not simply on by default, and that is deliberate. This is a debugging tool, and the shim
+is the one part of it that *changes the thing being debugged*. A wrapper of ours sitting
+unannounced in an app's `fetch` chain is exactly the sort of thing that costs somebody an
+afternoon — so it only goes in where the tool would otherwise be useless.
+
+The eye in the toolbar turns it on for good, or off again; the choice is remembered with your
+theme. It also reinstalls itself after a reload or a navigation, which would otherwise throw it
+away with the old document. It needs no permissions, only touches the tab whose DevTools you
+opened, forwards every call untouched, swallows its own errors so a bug in it cannot break the
+app you are debugging, and is gone when you close DevTools. Nothing is uploaded either way.
 
 ## Nothing is stored
 

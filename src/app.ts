@@ -400,6 +400,7 @@ export function mountApp(source: Source | null, hintOverride?: string) {
   let lastDiagKey = "";
   function refreshDiagnosis() {
     if (store.size > 0 || store.requests === 0) return;
+    maybeReadPageAutomatically();
     const key = `${store.requests}|${(source?.stats?.() ?? []).join("|")}|${source?.watchingPage?.() ?? false}`;
     if (key === lastDiagKey) return;
     lastDiagKey = key;
@@ -409,6 +410,10 @@ export function mountApp(source: Source | null, hintOverride?: string) {
   /** Once a second, refresh only the countdowns — re-rendering everything would fight the scroll. */
   function tick() {
     refreshDiagnosis();
+    const watching = source?.watchingPage?.() ?? false;
+    if (readPageBtn.getAttribute("aria-pressed") !== String(watching)) {
+      readPageBtn.setAttribute("aria-pressed", String(watching));
+    }
     const now = nowSeconds();
     for (const el of listEl.querySelectorAll<HTMLElement>(".row-exp")) {
       const exp = el.dataset["exp"] ? Number(el.dataset["exp"]) : null;
@@ -548,12 +553,41 @@ export function mountApp(source: Source | null, hintOverride?: string) {
 
   const readPageBtn = $<HTMLButtonElement>("read-page");
 
+  /**
+   * Turn the page reader on by itself, but only once the ordinary route has
+   * provably failed: enough requests to judge by, no token in any of them,
+   * nothing reported as fetch or XHR, and the page itself saying it made some.
+   *
+   * Not on by default, because this is a debugging tool and the shim changes
+   * the page being debugged — a wrapper of ours sitting in an app's fetch chain
+   * unannounced is exactly the kind of thing that costs someone an afternoon.
+   * Under these four conditions the tool is useless otherwise, so the trade is
+   * worth making, and it says so when it does.
+   */
+  let escalated = false;
+  let refusedByUser = false;
+  function maybeReadPageAutomatically() {
+    if (escalated || refusedByUser || prefs.autoReadPage) return;
+    if (!source?.watchPage) return;
+    if (store.size > 0 || store.requests < 20) return;
+    const d = store.diagnostics();
+    if (d.resourceTypes.some((t) => /^(xhr|fetch)\b/.test(t))) return;
+    const pageXhr = source.pageFetchCount?.() ?? null;
+    if (pageXhr === null || pageXhr <= 0) return;
+
+    escalated = true;
+    source.watchPage();
+    toast(`DevTools reported none of the page's ${pageXhr} API calls — reading the page instead`);
+    renderList();
+  }
+
   /** Turn the page reader on or off, and remember it. */
   function setAutoReadPage(on: boolean, announce = true) {
     prefs.autoReadPage = on;
     readPageBtn.setAttribute("aria-pressed", String(on));
     savePrefs(prefs);
     if (on) {
+      escalated = false;
       source?.watchPage?.();
       if (announce) toast("Reading the page — this stays on next time");
     } else if (announce) {
@@ -562,7 +596,11 @@ export function mountApp(source: Source | null, hintOverride?: string) {
     renderList();
   }
 
-  readPageBtn.addEventListener("click", () => setAutoReadPage(!prefs.autoReadPage));
+  readPageBtn.addEventListener("click", () => {
+    const turningOff = prefs.autoReadPage || escalated;
+    if (turningOff) { escalated = false; refusedByUser = true; }
+    setAutoReadPage(!turningOff);
+  });
 
   const feed = (facts: RequestFacts) => {
     if (paused) return;
