@@ -24,6 +24,8 @@ export interface Source {
   rescan?(onRequest: (facts: RequestFacts) => void): void;
   /** Lines about what the host itself reported, shown when nothing was found. */
   stats?(): string[];
+  /** How many fetch/XHR calls the page itself admits to, or null if unknown. */
+  pageFetchCount?(): number | null;
   /** Read requests from inside the page, for hosts that will not report them. */
   watchPage?(): void;
   /** The same, but reloading first — for an app that captured `fetch` early. */
@@ -73,7 +75,9 @@ const WHERE_SHORT: Record<Where, string> = {
  * than leaving the user to guess — which is the exact failure this tool exists
  * to end.
  */
-function diagnosisHtml(d: Diagnostics, hostStats: string[], canWatch: boolean, watching: boolean): string {
+function diagnosisHtml(
+  d: Diagnostics, hostStats: string[], canWatch: boolean, watching: boolean, pageXhr: number | null,
+): string {
   const rows: [string, string][] = [
     ["requests seen", String(d.requests)],
     ["with request headers", `${d.withHeaders}`],
@@ -94,10 +98,22 @@ function diagnosisHtml(d: Diagnostics, hostStats: string[], canWatch: boolean, w
     advice = "DevTools handed over these requests without any headers. Open the Network"
       + " panel once so it records them, then reload the page and press Rescan.";
   } else if (d.withAuthHeader === 0 && !d.resourceTypes.some((t) => /^(xhr|fetch)\b/.test(t))) {
-    advice = "No XHR or fetch traffic was reported at all — only documents and assets. The"
-      + " API calls are not reaching this panel, so check that DevTools is attached to the"
-      + " tab making them, and that they are not coming from a service worker, which"
-      + " DevTools reports separately.";
+    const preflights = Number(/^preflight (\d+)/.exec(d.resourceTypes.find((t) => t.startsWith("preflight")) ?? "")?.[1] ?? 0);
+    // The confusing part, said out loud: requests to the API hosts *are* here,
+    // they are just the OPTIONS calls, which by design carry no credentials.
+    const preflightNote = preflights > 0
+      ? ` The ${preflights} request${preflights === 1 ? "" : "s"} you can see going to your API`
+        + " hosts are CORS preflights — the OPTIONS call the browser sends first, which by"
+        + " design never carries an Authorization header. The calls that do are the ones"
+        + " missing."
+      : "";
+    advice = pageXhr !== null && pageXhr > 0
+      ? `DevTools handed over no fetch or XHR at all, while the page itself says it made ${pageXhr}.`
+        + preflightNote + " Reading the page directly is the way round it."
+      : "No XHR or fetch traffic was reported at all — only documents and assets."
+        + preflightNote
+        + " Check that DevTools is attached to the tab making them, and that they are not"
+        + " coming from a service worker, which DevTools reports separately.";
   } else if (d.withAuthHeader === 0) {
     advice = "XHR/fetch traffic arrived but not one request carried an Authorization header,"
       + " even though DevTools recorded the other headers. Either the token travels another"
@@ -267,6 +283,7 @@ export function mountApp(source: Source | null, hintOverride?: string) {
             source?.stats?.() ?? [],
             typeof source?.watchPage === "function",
             source?.watchingPage?.() ?? false,
+            source?.pageFetchCount?.() ?? null,
           )
         : `<p class="empty">${esc(hintOverride ?? source?.hint ?? "Paste a token to decode it.")}</p>`;
       wireOffer();

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JWT Lens",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Read the JWTs your app is actually sending. A DevTools panel that pulls them off the requests of the tab you are inspecting.",
   "devtools_page": "devtools.html",
   "icons": {

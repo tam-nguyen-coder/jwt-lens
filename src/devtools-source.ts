@@ -162,6 +162,10 @@ export function createDevtoolsSource(): Source {
       readHar(onRequest);
     },
 
+    pageFetchCount() {
+      return probe && probe.pageXhr >= 0 ? probe.pageXhr : null;
+    },
+
     stats() {
       const lines = [`live events ${stats.live}`, `HAR entries ${stats.har}`, `HAR reads ${stats.polls}`];
       if (probe) {
